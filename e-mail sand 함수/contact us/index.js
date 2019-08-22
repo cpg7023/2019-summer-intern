@@ -1,59 +1,18 @@
 const AWS = require('aws-sdk');
-var ses = require('node-ses');
-var mailComposer = require('mailcomposer');
-
-const client = ses.createClient({
-    key: process.env.ACCESS_KEY,
-    secret: process.env.SECRET_ACCESS_KEY, 
-    amazon: 'https://email.us-west-2.amazonaws.com/'
-});
+const ses = new AWS.SES;
+const Influx = require('influxdb-nodejs');
+const client = new Influx(`http://${process.env.INFLUX_URL}/submitted_email`)
 
 
 exports.handler = (event, context, callback) => {
-    console.log(event);
     
-   
-    client.sendEmail({
-        to: 'cpg70233@naver.com',
-        from: event.posted_data.name,
-        subject: event.posted_data.name,
-        message: event.posted_data.message,
-        replyto: event.posted_data.email,
-    }, function(err,date,res){
-        if (err) {
-            console.log(err);
-            context.fail(err); // 메일전송실패
-        }
-        else {
-            console.log(data);
-            context.succeed(event);  // 메일전송성공
-        }
+  console.log('Received event:', JSON.stringify(event, null, 2));
     
-    })
-   
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-  /*  console.log('Received event:', JSON.stringify(event, null, 2));
-    if (event.posted_data.name===undefined || event.posted_data.email===undefined || event.posted_data.message===undefined){
-        callback("400 Invalid Input");
-    }
    var params = {
         Destination: {
-            ToAddresses: [event.posted_data.email] //SES에서 확인된 이메일 주소
+            ToAddresses: [
+                "support@signal9.io",
+                ] //수신자 이메일 주소
         },
         Message: {
             Body: {
@@ -64,9 +23,21 @@ exports.handler = (event, context, callback) => {
             Subject: { Data: event.posted_data.name  //제목
             }
         },
-        Source: "cpg70233@naver.com" //SES 확인 발신자 이메일 주소
+        ReplyToAddresses: [event.posted_data.email],
+        Source: "support@signal9.io", //발신자 이메일 주소
+        //SourceArn: 'arn:aws:ses:us-east-1:135269338319:identity/signal9.io'
     };
 
+    client.write('contactus_email')
+           .tag({
+               questioner: event.posted_data.email,
+            })
+           .field({ 
+               subject: event.posted_data.name,
+               text: event.posted_data.message
+             }) 
+           .then(() => console.info('write point success'))
+           .catch(err => console.error(`Write point fail,${err.message}`));
     
      ses.sendEmail(params, function (err, data) {
         callback(null, {err: err, data: data});
@@ -77,5 +48,5 @@ exports.handler = (event, context, callback) => {
             console.log(data);
             context.succeed(event); //메일 전송 성공
         }
-    });*/
+    });
 };
